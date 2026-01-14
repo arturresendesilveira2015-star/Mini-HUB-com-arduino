@@ -1,0 +1,814 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#define JDY16 Serial1
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+String msg = "";
+long numeros_calculadora[] = {0,0};
+int qual_do_menu = 0;
+int qual_operacao = 0;
+int musica_de_fundo = 0;
+int posicao_inimigo[] = {0,0};
+int numeros_para_multiplicar[] = {0,0,0,0,0,0};
+int qual_das_configuracoes = 0;
+int qual_parte_da_musica = 0;
+int qual_musica = 0;
+int posicao = 0;
+int contador_de_tempo = 0;
+int minutos = 0;
+int segundos = 0;
+int horas = 0;
+int sensibilidade = 0;
+int qual_numero = 0;
+int numeros[]{
+  0,1,2,3,4,5,6,7,8,9
+};
+int musica_de_fundo_loop[] = {
+  440, 494, 523, 587, 659, 587, 523, 494,
+  440, 440, 392, 440, 392, 349, 392, 440,
+  494, 523, 587, 523, 494, 440
+};
+String nome_das_musicas[10] = {
+  "Ode to Joy",
+  "Fur Elise",
+  "Star Wars",
+  "Phonk 1",
+  "Phonk 2",
+  "Phonk 3",
+  "Classica 2",
+  "Star Wars 2",
+  "Classica 3",
+  "Phonk 4"
+};
+String nome_das_operacoes[] = {
+  "-",
+  "+",
+  "/",
+  "*",
+  "&",
+  "=",
+  "%",
+  "|",
+  ">",
+  "<",
+  "^",
+};
+int musicas[10][47] = {
+  {330,330,349,392,392,349,330,294,262,262,294,330,330,294,262,0,
+   330,330,349,392,392,349,330,294,262,262,294,330,330,294,262,0,
+   330,330,349,392,392,349,330,294,262,262,294,330,330,294,262},
+  {659,622,659,622,659,494,587,523,440,0,523,587,494,440,392,0,
+   659,622,659,622,659,494,587,523,440,0,523,587,494,440,392,0,
+   659,622,659,622,659,494,587,523,440,0,523,587,494,440,392},
+  {392,392,392,311,466,392,311,466,392,0,523,523,523,392,311,466,392,311,466,392,0,
+   392,392,392,311,466,392,311,466,392,0,523,523,523,392,311,466,392,311,466,392,0,
+   392,392,392,311,466},
+  {196,220,196,196,220,196,174,174,196,220,196,196,220,196,174,174,196,220,196,196,
+   220,196,174,174,196,196,220,196,196,220,196,174,174,196,196,220,196,196,220,196,
+   174,174,196,196,220,196},
+  {220,196,174,196,220,196,174,174,196,220,196,196,220,196,174,174,196,220,196,196,
+   220,196,174,174,196,220,196,174,196,220,196,174,174,196,220,196,196,220,196,174,
+   174,196,220,196,196,220},
+  {196,174,196,220,196,174,174,196,220,196,196,220,196,174,174,196,220,196,196,220,
+   196,174,174,196,196,174,196,220,196,174,174,196,220,196,196,220,196,174,174,196,
+   220,196,196,220,196,174},
+  {262,294,330,349,392,440,392,349,330,294,262,294,330,349,392,440,392,349,330,294,
+   262,294,330,349,392,440,392,349,330,294,262,294,330,349,392,440,392,349,330,294,
+   262,294,330,349,392},
+  {392,392,466,523,440,392,466,523,392,392,466,523,440,392,466,523,392,392,466,523,
+   392,392,466,523,440,392,466,523,392,392,466,523,440,392,466,523,392,392,466,523,
+   392,392,466,523,440},
+  {330,349,392,440,392,349,330,294,262,294,330,349,392,440,392,349,330,294,262,294,
+   330,349,392,440,392,349,330,294,262,294,330,349,392,440,392,349,330,294,262,294,
+   330,349,392,440,392},
+  {196,174,196,220,196,174,196,220,196,174,196,220,196,174,196,220,196,174,196,220,
+   196,174,196,220,196,174,196,220,196,174,196,220,196,174,196,220,196,174,196,220,
+   196,174,196,220,196}
+};
+String todas_as_configuracoes[] = {"Sensibilidade", "Musica de fundo"};
+String menu[] = {"Configuracoes", "Musica", "Jogo", "Cronometro", "Calculadora"};
+void inicio();
+void opcoes();
+void configuracoes();
+void musica();
+void jogo();
+void cronometro();
+
+void setup(){
+  JDY16.begin(9600);
+  lcd.init();
+  lcd.backlight();
+  lcd.clear();
+  Serial.begin(9600);
+  pinMode(A0, INPUT);
+  pinMode(A1, INPUT);
+  pinMode(A3, INPUT);
+  pinMode(A2, INPUT);
+  pinMode(2, OUTPUT);
+  inicio();
+  delay(2000);
+}
+
+void inicio(){
+  byte icone[8] = {
+  B01110,
+  B00100,
+  B10101,
+  B11111,
+  B11111,
+  B10101,
+  B00100,
+  B01110
+  };
+  lcd.createChar(0, icone);
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Bem vindo ao WMA");
+  lcd.setCursor(8, 1);
+  lcd.write(byte(0));
+}
+
+void configuracoes(){
+  msg = "";
+  while(!((analogRead(A0) > 900 && analogRead(A1) > 900) || msg[9] == 'L')){
+    if (JDY16.available()) {
+      msg = JDY16.readStringUntil('\n');
+    }
+    if (musica_de_fundo == 0){
+    tone(2, musica_de_fundo_loop[qual_parte_da_musica]);
+    qual_parte_da_musica++;
+    if (qual_parte_da_musica == sizeof(musica_de_fundo_loop) / sizeof(musica_de_fundo_loop[0])){
+      qual_parte_da_musica = 0;
+    }
+    }else{
+      noTone(2);
+    }
+    lcd.clear();
+    if (analogRead(A0) > 900 - sensibilidade * 9 || msg[1] == 'L'){
+      qual_das_configuracoes--;
+    }
+    if (analogRead(A0) < 40 + sensibilidade * 9 || msg[3] == 'L'){
+      qual_das_configuracoes++;  
+    }
+    if (qual_das_configuracoes < 0){
+      qual_das_configuracoes = 0;
+    }
+    if (qual_das_configuracoes > 1){
+      qual_das_configuracoes = 1;
+    }
+    lcd.setCursor(1, 0);
+    lcd.print("Configuracoes:");
+    lcd.setCursor(1, 1);
+    lcd.print(todas_as_configuracoes[qual_das_configuracoes]);
+    delay(250);
+  }
+  delay(1000);
+  msg = "";
+  if (qual_das_configuracoes == 0){
+  while(!((analogRead(A0) > 900 && analogRead(A1) > 900) || msg[9] == 'L')){
+    if (JDY16.available()) {
+      msg = JDY16.readStringUntil('\n');
+    }
+    if (musica_de_fundo == 0){
+    tone(2, musica_de_fundo_loop[qual_parte_da_musica]);
+    qual_parte_da_musica++;
+    if (qual_parte_da_musica == sizeof(musica_de_fundo_loop) / sizeof(musica_de_fundo_loop[0])){
+      qual_parte_da_musica = 0;
+    }
+    }else{
+      noTone(2);
+    }
+    lcd.clear();
+    if (analogRead(A0) > 900 - sensibilidade * 9 || msg[1] == 'L'){
+      sensibilidade--;
+    }
+    if (analogRead(A0) < 40 + sensibilidade * 9 || msg[3] == 'L'){
+      sensibilidade++;  
+    }
+    if (sensibilidade < 0){
+      sensibilidade = 0;
+    }
+    if (sensibilidade > 100){
+      sensibilidade = 100;
+    }
+    lcd.setCursor(2, 0);
+    lcd.print("Sensibilidade:");
+    lcd.setCursor(2, 1);
+    lcd.print(sensibilidade);
+    delay(250);
+  }
+  }
+  if (qual_das_configuracoes == 1){
+  while(!((analogRead(A0) > 900 && analogRead(A1) > 900) || msg[9] == 'L')){
+    if (JDY16.available()) {
+      msg = JDY16.readStringUntil('\n');
+    }
+    if (musica_de_fundo == 0){
+    tone(2, musica_de_fundo_loop[qual_parte_da_musica]);
+    qual_parte_da_musica++;
+    if (qual_parte_da_musica == sizeof(musica_de_fundo_loop) / sizeof(musica_de_fundo_loop[0])){
+      qual_parte_da_musica = 0;
+    }
+    }else{
+      noTone(2);
+    }
+    lcd.clear();
+    if (analogRead(A0) > 900 - sensibilidade * 9 || msg[1] == 'L'){
+      musica_de_fundo--;
+    }
+    if (analogRead(A0) < 40 + sensibilidade * 9 || msg[3] == 'L'){
+      musica_de_fundo++;
+    }
+    if (musica_de_fundo < 0){
+      musica_de_fundo = 0;
+    }
+    if (musica_de_fundo > 1){
+      musica_de_fundo = 1;
+    }
+    lcd.setCursor(0, 0);
+    lcd.print("Musica de fundo:");
+    lcd.setCursor(0, 1);
+    if (musica_de_fundo == 0){
+      lcd.print("Ligado");
+    }else{
+      lcd.print("Desligado");
+      qual_parte_da_musica = 0;
+    }
+    delay(250);
+  }
+  }
+  delay(1000);
+}
+
+void musica(){
+  qual_parte_da_musica = 0;
+  noTone(2);
+  msg = "";
+  while(!((analogRead(A0) > 900 && analogRead(A1) > 900) || msg[9] == 'L')){
+    if (JDY16.available()) {
+      msg = JDY16.readStringUntil('\n');
+    }
+    lcd.clear();
+    if (analogRead(A0) > 900 - sensibilidade * 9 || msg[1] == 'L'){
+      qual_musica--;
+    }
+    if (analogRead(A0) < 40 + sensibilidade * 9 || msg[3] == 'L'){
+      qual_musica++;  
+    }
+    if (qual_musica < 0){
+      qual_musica = 0;
+    }
+    if (qual_musica == 10){
+      qual_musica = 9;
+    }
+    lcd.setCursor(2, 0);
+    lcd.print("Musicas:");
+    lcd.setCursor(2, 1);
+    lcd.print(nome_das_musicas[qual_musica]);
+    delay(250);
+  }
+  delay(1000);
+  for(int i = 0; i < sizeof(musicas[qual_musica]) / sizeof(musicas[qual_musica][0]); i++){
+    if (JDY16.available()) {
+      msg = JDY16.readStringUntil('\n');
+    }
+    if ((analogRead(A0) > 900 && analogRead(A1) > 900) || msg[9] == 'L'){
+      break;
+    }
+    tone(2, musicas[qual_musica][i]);
+    delay(200);
+  }
+  noTone(2);
+}
+
+void jogo(){
+  msg = "";
+  posicao_inimigo[0] = 0;
+  byte carro[8] = {
+  B00000,
+  B00000,
+  B01010,
+  B11111,
+  B11111,
+  B01010,
+  B00000,
+  B00000
+  };
+  lcd.createChar(0, carro);
+while (!(posicao == posicao_inimigo[1] && posicao_inimigo[0] == 15) && !(analogRead(A0) > 950 && analogRead(A1) > 700)){
+  if (JDY16.available()) {
+    msg = JDY16.readStringUntil('\n');
+  }
+  if (musica_de_fundo == 0){
+  tone(2, musica_de_fundo_loop[qual_parte_da_musica]);
+  qual_parte_da_musica++;
+  if (qual_parte_da_musica == sizeof(musica_de_fundo_loop) / sizeof(musica_de_fundo_loop[0])){
+    qual_parte_da_musica = 0;
+  }
+  }else{
+    noTone(2);
+  }
+  lcd.clear();
+  if (analogRead(A1) > 900 - sensibilidade * 9 || msg[7] == 'L'){
+    posicao++;
+  }
+  if (analogRead(A1) < 40 + sensibilidade * 9 || msg[5] == 'L'){
+    posicao--;  
+  }
+  if (posicao < 0){
+    posicao = 0;
+  }
+  if (posicao == 2){
+    posicao = 1;
+  }
+  posicao_inimigo[0]++;
+  if (posicao_inimigo[0] == 16){
+    posicao_inimigo[0] = 0;
+  }
+  posicao_inimigo[1] = random(0, 2);
+  lcd.setCursor(0, 0);
+  lcd.print("----------------");
+  lcd.setCursor(0, 1);
+  lcd.print("----------------");
+  lcd.setCursor(15, posicao);
+  lcd.write(byte(0));
+  lcd.setCursor(posicao_inimigo[0], posicao_inimigo[1]);
+  lcd.write(byte(0));
+  delay(250);
+}
+ lcd.clear();
+ lcd.setCursor(4, 0);
+ lcd.print("Game Over!"); 
+ delay(1000);
+}
+
+void cronometro(){
+msg = "";
+horas = 0;
+minutos = 0;
+segundos = 0;
+contador_de_tempo = 0;
+for(int i = 0; i < 6; i++){
+  numeros_para_multiplicar[i] = 0;
+}
+for(int i = 0; i < 6; i++){
+msg = "";
+while(!((analogRead(A0) > 900 && analogRead(A1) > 900) || msg[9] == 'L')){
+    if (JDY16.available()) {
+      msg = JDY16.readStringUntil('\n');
+    }
+    if (musica_de_fundo == 0){
+    tone(2, musica_de_fundo_loop[qual_parte_da_musica]);
+    qual_parte_da_musica++;
+    if (qual_parte_da_musica == sizeof(musica_de_fundo_loop) / sizeof(musica_de_fundo_loop[0])){
+      qual_parte_da_musica = 0;
+    }
+    }else{
+      noTone(2);
+    }
+    lcd.clear();
+    if (analogRead(A0) > 900 - sensibilidade * 9 || msg[1] == 'L'){
+      qual_numero--;
+    }
+    if (analogRead(A0) < 40 + sensibilidade * 9 || msg[3] == 'L'){
+      qual_numero++;  
+    }
+    if (qual_numero < 0){
+      qual_numero = 0;
+    }
+    if (qual_numero == 10){
+      qual_numero = 9;
+    }
+  numeros_para_multiplicar[i] = qual_numero;
+  segundos = numeros_para_multiplicar[0] + numeros_para_multiplicar[1] * 10;
+  minutos = numeros_para_multiplicar[2] + numeros_para_multiplicar[3] * 10;
+  horas = numeros_para_multiplicar[4] + numeros_para_multiplicar[5] * 10;
+  lcd.clear();
+  lcd.setCursor(0, 1);
+  lcd.print(horas);
+  lcd.print(":");
+  lcd.print(minutos);
+  lcd.print(":");
+  lcd.print(segundos);
+  lcd.setCursor(0, 0);
+  lcd.print(numeros[qual_numero]);
+  delay(250);
+}
+delay(1000);
+}
+msg = "";
+while(!(segundos <= 0 && minutos <= 0 && horas <= 0)){
+  if (JDY16.available()) {
+    msg = JDY16.readStringUntil('\n');
+  }
+  if (musica_de_fundo == 0){
+  tone(2, musica_de_fundo_loop[qual_parte_da_musica]);
+  qual_parte_da_musica++;
+  if (qual_parte_da_musica == sizeof(musica_de_fundo_loop) / sizeof(musica_de_fundo_loop[0])){
+    qual_parte_da_musica = 0;
+  }
+  }else{
+    noTone(2);
+  }
+  if((analogRead(A0) > 900 && analogRead(A1) > 900) || msg[9] == 'L'){
+    break;
+  }
+  lcd.clear();
+  lcd.setCursor(0, 1);
+  lcd.print(horas);
+  lcd.print(":");
+  lcd.print(minutos);
+  lcd.print(":");
+  lcd.print(segundos);
+  if(contador_de_tempo == 4){
+    segundos--;
+    contador_de_tempo = 0;
+  }
+  if(minutos == 0 && horas > 0){
+    horas--;
+    minutos = 59;
+  }
+  if(segundos == 0 && minutos > 0){
+    minutos--;
+    segundos = 59;
+  }  
+  delay(250);
+  contador_de_tempo++;
+}
+noTone(2);
+digitalWrite(2, HIGH);
+delay(2000);
+}
+
+void calculadora(){
+msg = "";
+byte simbulo1[8] = {
+  B00000,
+  B01001,
+  B10110,
+  B00000,
+  B01001,
+  B10110,
+  B00000,
+  B00000
+};
+byte simbulo2[8] = {
+  B00000,
+  B00100,
+  B01010,
+  B01010,
+  B10001,
+  B10001,
+  B10001,
+  B11111
+};
+byte simbulo3[8] = {
+  B00000,
+  B00001,
+  B00010,
+  B11111,
+  B00100,
+  B11111,
+  B01000,
+  B10000
+};
+byte simbulo4[8] = {
+  B00001,
+  B00010,
+  B00100,
+  B01000,
+  B00100,
+  B00010,
+  B00001,
+  B11111
+};
+byte simbulo5[8] = {
+  B10000,
+  B01000,
+  B00100,
+  B00010,
+  B00100,
+  B01000,
+  B10000,
+  B11111
+};
+byte simbulo6[8] = {
+  B00000,
+  B01110,
+  B10101,
+  B11111,
+  B10101,
+  B01110,
+  B00000,
+  B00000
+};
+byte simbulo7[8] = {
+  B11000,
+  B00100,
+  B10010,
+  B01001,
+  B10010,
+  B00100,
+  B11000,
+  B00000
+};
+byte simbulo8[8] = {
+  B00011,
+  B00100,
+  B01001,
+  B10010,
+  B01001,
+  B00100,
+  B00011,
+  B00000
+};
+lcd.createChar(0, simbulo1);
+lcd.createChar(1, simbulo2);
+lcd.createChar(2, simbulo3);
+lcd.createChar(3, simbulo4);
+lcd.createChar(4, simbulo5);
+lcd.createChar(5, simbulo6);
+lcd.createChar(6, simbulo7);
+lcd.createChar(7, simbulo8);
+for(int x = 0; x < 2; x++){
+for(int i = 0; i < 6; i++){
+  numeros_para_multiplicar[i] = 0;
+}
+for(int i = 0; i < 6; i++){
+msg = "";
+while(!((analogRead(A0) > 900 && analogRead(A1) > 900) || msg[9] == 'L')){
+    if (JDY16.available()) {
+      msg = JDY16.readStringUntil('\n');
+    }
+    if (musica_de_fundo == 0){
+    tone(2, musica_de_fundo_loop[qual_parte_da_musica]);
+    qual_parte_da_musica++;
+    if (qual_parte_da_musica == sizeof(musica_de_fundo_loop) / sizeof(musica_de_fundo_loop[0])){
+      qual_parte_da_musica = 0;
+    }
+    }else{
+      noTone(2);
+    }
+    lcd.clear();
+    if (analogRead(A0) > 900 - sensibilidade * 9 || msg[1] == 'L'){
+      qual_numero--;
+    }
+    if (analogRead(A0) < 40 + sensibilidade * 9 || msg[3] == 'L'){
+      qual_numero++;  
+    }
+    if (qual_numero < 0){
+      qual_numero = 0;
+    }
+    if (qual_numero == 10){
+      qual_numero = 9;
+    }
+    numeros_para_multiplicar[i] = qual_numero;
+    numeros_calculadora[x] = (long)numeros_para_multiplicar[0] + 
+    (long)numeros_para_multiplicar[1] * 10 +
+    (long)numeros_para_multiplicar[2] * 100 +
+    (long)numeros_para_multiplicar[3] * 1000 +
+    (long)numeros_para_multiplicar[4] * 10000 +
+    (long)numeros_para_multiplicar[5] * 100000;
+  lcd.clear();
+  lcd.setCursor(0, 1);
+  lcd.print(numeros_calculadora[x]);
+  lcd.setCursor(0, 0);
+  lcd.print(numeros[qual_numero]);
+  delay(250);
+}
+delay(1000);
+}
+delay(1000);
+}
+msg = "";
+while(!((analogRead(A0) > 900 && analogRead(A1) > 900) || msg[9] == 'L')){
+    if (JDY16.available()) {
+      msg = JDY16.readStringUntil('\n');
+    }
+    if (musica_de_fundo == 0){
+    tone(2, musica_de_fundo_loop[qual_parte_da_musica]);
+    qual_parte_da_musica++;
+    if (qual_parte_da_musica == sizeof(musica_de_fundo_loop) / sizeof(musica_de_fundo_loop[0])){
+      qual_parte_da_musica = 0;
+    }
+    }else{
+      noTone(2);
+    }
+    lcd.clear();
+    if (analogRead(A0) > 900 - sensibilidade * 9 || msg[1] == 'L'){
+      qual_operacao--;
+    }
+    if (analogRead(A0) < 40 + sensibilidade * 9 || msg[3] == 'L'){
+      qual_operacao++;  
+    }
+    if (qual_operacao < 0){
+      qual_operacao = 0;
+    }
+    if (qual_operacao == 20){
+      qual_operacao = 19;
+    }
+  lcd.setCursor(0, 0);
+  if (qual_operacao < 11){
+  lcd.print(nome_das_operacoes[qual_operacao]);
+  }
+  lcd.setCursor(0, 1);
+if(qual_operacao == 0){
+    lcd.print(numeros_calculadora[0] - numeros_calculadora[1]);
+}
+if(qual_operacao == 1){
+    lcd.print(numeros_calculadora[0] + numeros_calculadora[1]);
+}
+if(qual_operacao == 2){
+    lcd.print(float(numeros_calculadora[0]) / numeros_calculadora[1]);
+}
+if(qual_operacao == 3){
+    lcd.print(numeros_calculadora[0] * numeros_calculadora[1]);
+}
+if(qual_operacao == 4){
+    lcd.print(numeros_calculadora[0] & numeros_calculadora[1]);
+}
+if(qual_operacao == 5){
+    if(numeros_calculadora[0] == numeros_calculadora[1]){
+        lcd.print("Verdadeiro.");
+    }else{
+        lcd.print("Falso.");
+    }
+}
+if(qual_operacao == 6){
+    lcd.print(numeros_calculadora[0] % numeros_calculadora[1]);
+}
+if(qual_operacao == 7){
+    lcd.print(numeros_calculadora[0] | numeros_calculadora[1]);
+}
+if(qual_operacao == 8){
+    if(numeros_calculadora[0] > numeros_calculadora[1]){
+        lcd.print("Verdadeiro.");
+    }else{
+        lcd.print("Falso.");
+    }
+}
+if(qual_operacao == 9){
+    if(numeros_calculadora[0] < numeros_calculadora[1]){
+        lcd.print("Verdadeiro.");
+    }else{
+        lcd.print("Falso.");
+    }
+}
+if(qual_operacao == 10){
+    long resultado = 1;
+    for (int i = 0; i < numeros_calculadora[1]; i++) {
+        resultado *= numeros_calculadora[0];
+    }
+    lcd.print(resultado);
+}
+if(qual_operacao == 11){
+    lcd.setCursor(0, 0);
+    lcd.write(byte(0));
+    lcd.setCursor(0, 1);
+    lcd.print((numeros_calculadora[0] + numeros_calculadora[1]) / 2);
+}
+if(qual_operacao == 12){
+    lcd.setCursor(0, 0);
+    lcd.write(byte(1));
+    lcd.setCursor(0, 1);
+    lcd.print(abs(numeros_calculadora[0] - numeros_calculadora[1]));
+}
+if(qual_operacao == 13){
+    lcd.setCursor(0, 0);
+    lcd.write(byte(2));
+    lcd.setCursor(0, 1);
+    if(numeros_calculadora[0] != numeros_calculadora[1]){
+        lcd.print("Verdadeiro.");
+    }else{
+        lcd.print("Falso.");
+    }
+}
+if(qual_operacao == 14){
+    lcd.setCursor(0, 0);
+    lcd.write(byte(3));
+    lcd.setCursor(0, 1);
+    if(numeros_calculadora[0] <= numeros_calculadora[1]){
+        lcd.print("Verdadeiro.");
+    }else{
+        lcd.print("Falso.");
+    }
+}
+if(qual_operacao == 15){
+    lcd.setCursor(0, 0);
+    lcd.write(byte(4));
+    lcd.setCursor(0, 1);
+    if(numeros_calculadora[0] >= numeros_calculadora[1]){
+        lcd.print("Verdadeiro.");
+    }else{
+        lcd.print("Falso.");
+    }
+}
+if(qual_operacao == 16){
+    lcd.setCursor(0, 0);
+    lcd.write(byte(5));
+    lcd.setCursor(0, 1);
+    lcd.print(numeros_calculadora[0] ^ numeros_calculadora[1]);
+}
+if(qual_operacao == 17){
+    lcd.setCursor(0, 0);
+    lcd.write(byte(6));
+    lcd.setCursor(0, 1);
+    lcd.print(numeros_calculadora[0] >> numeros_calculadora[1]);
+}
+if(qual_operacao == 18){
+    lcd.setCursor(0, 0);
+    lcd.write(byte(7));
+    lcd.setCursor(0, 1);
+    lcd.print(numeros_calculadora[0] << numeros_calculadora[1]);
+}
+if(qual_operacao == 19){
+    byte simbulo1[8] = {
+        B00000,
+        B00000,
+        B00001,
+        B00010,
+        B00010,
+        B10100,
+        B10100,
+        B01000
+    };
+    lcd.createChar(0, simbulo1);
+    lcd.setCursor(0, 0);
+    lcd.write(byte(0));
+    lcd.setCursor(0, 1);
+    lcd.print(pow(float(numeros_calculadora[0]), 1.0 / float(numeros_calculadora[1])));
+}else{
+    byte simbulo1[8] = {
+        B00000,
+        B01001,
+        B10110,
+        B00000,
+        B01001,
+        B10110,
+        B00000,
+        B00000
+    };
+    lcd.createChar(0, simbulo1);
+}
+  delay(250);
+}
+delay(1000);
+}
+
+void opcoes(){
+  msg = "";
+  while(!((analogRead(A0) > 900 && analogRead(A1) > 900) || msg[9] == 'L')){
+    if (JDY16.available()){
+      msg = JDY16.readStringUntil('\n');
+    }
+    if (musica_de_fundo == 0){
+    tone(2, musica_de_fundo_loop[qual_parte_da_musica]);
+    qual_parte_da_musica++;
+    if (qual_parte_da_musica == sizeof(musica_de_fundo_loop) / sizeof(musica_de_fundo_loop[0])){
+      qual_parte_da_musica = 0;
+    }
+    }else{
+      noTone(2);
+    }
+    lcd.clear();
+    if (analogRead(A0) > 900 - sensibilidade * 9 || msg[1] == 'L'){
+      qual_do_menu--;
+    }
+    if (analogRead(A0) < 40 + sensibilidade * 9 || msg[3] == 'L'){
+      qual_do_menu++; 
+    }
+    if (qual_do_menu < 0){
+      qual_do_menu = 0;
+    }
+    if (qual_do_menu > sizeof(menu) / sizeof(menu[0]) - 1){
+      qual_do_menu = sizeof(menu) / sizeof(menu[0]) - 1;
+    }
+    lcd.setCursor(2, 0);
+    lcd.print("Opcoes:");
+    lcd.setCursor(2, 1);
+    lcd.print(menu[qual_do_menu]);
+    delay(250);
+  }
+  delay(1000);
+  if (qual_do_menu == 0){
+    configuracoes();
+  }
+  if (qual_do_menu == 1){
+    musica();
+  }
+  if (qual_do_menu == 2){
+    jogo();
+  }
+  if (qual_do_menu == 3){
+    cronometro();
+  }
+  if (qual_do_menu == 4){
+    calculadora();
+  }
+}
+
+void loop(){
+  opcoes();
+  delay(1500);
+}
